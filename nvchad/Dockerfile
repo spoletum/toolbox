@@ -2,6 +2,8 @@
 ARG UBUNTU_TAG=24.04
 FROM docker.io/ubuntu:${UBUNTU_TAG}
 
+ARG TARGETARCH
+
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-256color
@@ -35,15 +37,16 @@ RUN ln -s $(which fdfind) /usr/local/bin/fd
 # =============================================================================
 # 2. Go (latest release)
 # =============================================================================
-RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1) \
-    && curl -LO https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf ${GO_VERSION}.linux-amd64.tar.gz \
-    && rm ${GO_VERSION}.linux-amd64.tar.gz
+RUN ARCH=$(case ${TARGETARCH} in amd64) echo "amd64";; arm64) echo "arm64";; esac) \
+    && GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1) \
+    && curl -LO https://go.dev/dl/${GO_VERSION}.linux-${ARCH}.tar.gz \
+    && tar -C /usr/local -xzf ${GO_VERSION}.linux-${ARCH}.tar.gz \
+    && rm ${GO_VERSION}.linux-${ARCH}.tar.gz
 
 # =============================================================================
 # 2.5 Environment & PATH (needed before language servers are installed)
 # =============================================================================
-ENV PATH="/root/go/bin:/usr/local/go/bin:/opt/nvim-linux-x86_64/bin:/root/.opencode/bin:/root/.local/bin:/usr/local/bin:${PATH}"
+ENV PATH="/root/go/bin:/usr/local/go/bin:/opt/nvim/bin:/root/.opencode/bin:/root/.local/bin:/usr/local/bin:${PATH}"
 ENV HOME=/root
 
 # =============================================================================
@@ -65,26 +68,30 @@ RUN go install golang.org/x/tools/gopls@latest \
 # =============================================================================
 # 4. Neovim (latest official release, built with LuaJIT)
 # =============================================================================
-RUN curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz \
-    && tar -C /opt -xzf nvim-linux-x86_64.tar.gz \
-    && rm nvim-linux-x86_64.tar.gz
+RUN ARCH=$(case ${TARGETARCH} in amd64) echo "x86_64";; arm64) echo "arm64";; esac) \
+    && curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${ARCH}.tar.gz \
+    && tar -C /opt -xzf nvim-linux-${ARCH}.tar.gz \
+    && ln -sf /opt/nvim-linux-${ARCH} /opt/nvim \
+    && rm nvim-linux-${ARCH}.tar.gz
 
 # =============================================================================
 # 5. Lazygit
 # =============================================================================
-RUN LAZYGIT_VERSION=$(curl -s https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') \
-    && curl -LO https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_x86_64.tar.gz \
-    && tar -xzf lazygit_*_Linux_x86_64.tar.gz -C /tmp \
+RUN ARCH=$(case ${TARGETARCH} in amd64) echo "x86_64";; arm64) echo "arm64";; esac) \
+    && LAZYGIT_VERSION=$(curl -s https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') \
+    && curl -LO https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_${ARCH}.tar.gz \
+    && tar -xzf lazygit_*_Linux_${ARCH}.tar.gz -C /tmp \
     && mv /tmp/lazygit /usr/local/bin/ \
-    && rm lazygit_*_Linux_x86_64.tar.gz
+    && rm lazygit_*_Linux_${ARCH}.tar.gz
 
 # =============================================================================
 # 6. Zellij (pre-built musl binary)
 # =============================================================================
-RUN ZELLIJ_VERSION=$(curl -s https://api.github.com/repos/zellij-org/zellij/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') \
-    && curl -LO https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_VERSION}/zellij-x86_64-unknown-linux-musl.tar.gz \
-    && tar -xzf zellij-x86_64-unknown-linux-musl.tar.gz -C /usr/local/bin \
-    && rm zellij-x86_64-unknown-linux-musl.tar.gz \
+RUN ARCH=$(case ${TARGETARCH} in amd64) echo "x86_64";; arm64) echo "aarch64";; esac) \
+    && ZELLIJ_VERSION=$(curl -s https://api.github.com/repos/zellij-org/zellij/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') \
+    && curl -LO https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_VERSION}/zellij-${ARCH}-unknown-linux-musl.tar.gz \
+    && tar -xzf zellij-${ARCH}-unknown-linux-musl.tar.gz -C /usr/local/bin \
+    && rm zellij-${ARCH}-unknown-linux-musl.tar.gz \
     && chmod +x /usr/local/bin/zellij
 
 # =============================================================================
