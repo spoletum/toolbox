@@ -12,7 +12,9 @@ ENV SHELL=/bin/bash
 # =============================================================================
 # 1. Core System Dependencies
 # =============================================================================
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update && apt-get upgrade -y && apt-get install -y \
     ca-certificates \
     curl \
     wget \
@@ -23,8 +25,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     ripgrep \
     fzf \
     python3 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+    python3-pip
 
 # Generate locale
 RUN locale-gen en_US.UTF-8
@@ -52,18 +53,24 @@ ENV HOME=/root
 # =============================================================================
 # 3. Node.js (NodeSource 22.x)
 # =============================================================================
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get update && apt-get upgrade -y && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-RUN npm install -g tree-sitter-cli
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get update && apt-get upgrade -y && apt-get install -y nodejs
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g tree-sitter-cli
 
 # =============================================================================
 # 3.5 Language Servers (for LSP support in NvChad)
 # =============================================================================
-RUN go install golang.org/x/tools/gopls@latest \
-    && npm install -g typescript-language-server typescript \
-    && npm install -g pyright \
-    && npm install -g @tailwindcss/language-server
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    go install golang.org/x/tools/gopls@latest
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g typescript-language-server typescript
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g pyright
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g @tailwindcss/language-server
 
 # =============================================================================
 # 4. Neovim (latest official release, built with LuaJIT)

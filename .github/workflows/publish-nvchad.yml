@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'nvchad/**'
+      - '.github/workflows/publish-nvchad.yml'
   workflow_dispatch:
 
 env:
@@ -46,7 +52,7 @@ jobs:
           context: ./nvchad
           file: ./nvchad/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
