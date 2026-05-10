@@ -24,6 +24,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     locales \
     ripgrep \
     fzf \
+    gh \
     python3 \
     python3-pip
 
@@ -172,15 +173,15 @@ return {
     "neovim/nvim-lspconfig",
     config = function()
       require("nvchad.configs.lspconfig").defaults()
-      local lspconfig = require("lspconfig")
       local nvlsp = require("nvchad.configs.lspconfig")
       local servers = { "gopls", "pyright", "ts_ls" }
       for _, lsp in ipairs(servers) do
-        lspconfig[lsp].setup {
+        vim.lsp.config[lsp] = {
           on_attach = nvlsp.on_attach,
           on_init = nvlsp.on_init,
           capabilities = nvlsp.capabilities,
         }
+        vim.lsp.enable(lsp)
       end
     end,
   },
@@ -201,9 +202,6 @@ COPY zellij-layout.kdl /root/.config/zellij/layouts/dev.kdl
 # 11. Final Setup
 # =============================================================================
 WORKDIR /workspace
-
-# Declare volumes for project code and opencode data
-VOLUME ["/workspace", "/root/.config/opencode", "/root/.local/share/opencode", "/root/.local/state/opencode", "/root/.cache/opencode"]
 
 # Default: launch zellij with the dev layout
 CMD ["zellij", "--layout", "/root/.config/zellij/layouts/dev.kdl"]
