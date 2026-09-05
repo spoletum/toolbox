@@ -7,6 +7,7 @@ A collection of ready-to-use development environments, distributed as container 
 | Tool | Description | Image |
 |------|-------------|-------|
 | **NvChad** | A batteries-included Neovim + Zellij + OpenCode dev environment | `ghcr.io/spoletum/toolbox-nvchad` |
+| **Herdr Pi** | A Homebrew-based Linux environment with the pi coding agent | `ghcr.io/spoletum/toolbox-herdr-pi` |
 
 ## Quick Start
 
@@ -29,8 +30,13 @@ podman pull ghcr.io/spoletum/toolbox-nvchad:latest
 │   ├── Makefile                # Local build helpers
 │   ├── zellij-layout.kdl       # Default Zellij layout
 │   └── README.md               # Usage guide
+├── herdr/
+│   └── pi/                     # Homebrew environment with the pi coding agent
+│       ├── Dockerfile
+│       └── Makefile
 ├── .github/workflows/          # CI/CD pipelines
-│   └── publish-nvchad.yml      # Build and publish container
+│   ├── publish-nvchad.yml      # Build and publish toolbox-nvchad
+│   └── publish-herdr-pi.yml    # Build and publish toolbox-herdr-pi
 └── AGENTS.md                   # Project notes for contributors
 ```
 
