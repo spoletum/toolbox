@@ -31,6 +31,8 @@ The Dockerfiles use `--mount=type=cache` directives to persist package manager c
 - **Go modules** (nvchad): `/root/go/pkg/mod` — caches Go module downloads for `go install`
 - **Homebrew bottles** (herdr/pi): `/home/agent/.cache/Homebrew` — caches prebuilt bottle downloads; only the *download cache* is mounted, never the brew prefix itself
 
+The herdr/pi Homebrew bootstrap is pinned via the `HOMEBREW_VERSION` build arg (shallow `git clone` of the tagged release). This keeps the bootstrap layer stable — `install.sh` clones the moving HEAD and would invalidate it (and every layer after it) on each Homebrew release.
+
 These mounts require the `# syntax=docker/dockerfile:1` header (already present) and are exported alongside layers by `type=gha`.
 
 ### 3. Cache Warming via Pull Requests
@@ -46,4 +48,7 @@ These mounts require the `# syntax=docker/dockerfile:1` header (already present)
 - Do **not** use cache mounts for the Homebrew prefix (`/home/linuxbrew`) in `herdr/pi`
   - Same rationale: the entire brew-installed userland must be baked into the image layer
   - A cache mount would leave it out of the final image
+- Cache mounts used by a **non-root** build user (herdr/pi runs as `agent`) must set `uid`/`gid`
+  - BuildKit creates cache mount points owned by root; without `uid=${UID},gid=${GID}` the build user gets EACCES
+  - This is why herdr/pi's brew/npm cache mounts carry `uid=${UID},gid=${GID}`
 - The `sharing=locked` option on APT cache mounts prevents concurrent apt access during multi-platform builds
