@@ -56,15 +56,15 @@ W_WS_ID=$(echo "$W_CREATE" | jqf "result.workspace.workspace_id")
 W_ROOT_PANE=$(echo "$W_CREATE" | jqf "result.root_pane.pane_id")
 echo "  Workers: ws=$W_WS_ID root_pane=$W_ROOT_PANE"
 
-# ── Launch Hermes in Nervous System workspace ──────────────────────────────
-echo "⚙️ Starting Hermes (brain harness)..."
+# ── Launch Hermes via Teams Gateway ──────────────────────────────────────
+echo "⚙️ Starting Hermes Teams gateway..."
 
-# Split off a new pane from the root pane
-NS_SPLIT=$(herdr pane split --pane "$NS_ROOT_PANE" --direction right --cwd /workspace --no-focus)
-NS_HERMES_PANE=$(echo "$NS_SPLIT" | jqf "result.pane.pane_id")
-
-herdr agent start hermes --kind hermes --pane "$NS_HERMES_PANE" --timeout 60000
-echo "✓ Hermes started in $NS_HERMES_PANE"
+# Start the hermes gateway in background (handles Teams webhook on :3978)
+# --accept-hooks: auto-approve shell hooks without TTY prompt
+hermes gateway run --accept-hooks &
+HERMES_GATEWAY_PID=$!
+echo "✓ Hermes Teams gateway started (PID $HERMES_GATEWAY_PID)"
+echo "  Webhook: http://localhost:3978/api/messages"
 
 # ── Launch Omp in Workers workspace ───────────────────────────────────────
 echo "⚙️ Starting Omp (worker-spawner)..."
@@ -82,16 +82,19 @@ echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║  Herdr Nervous System Ready                              ║"
 echo "╠══════════════════════════════════════════════════════════╣"
-echo "║  Server PID:  $HERDR_PID"
-echo "║  Socket:      /root/.config/herdr/herdr.sock"
-echo "║  Hermes:      $NS_HERMES_PANE (Nervous System workspace)"
-echo "║  Omp:         $W_OMP_PANE (Workers workspace)"
+echo "║  Herdr Server PID:    $HERDR_PID"
+echo "║  Herdr Socket:        /root/.config/herdr/herdr.sock"
+echo "║  Hermes Gateway PID:  $HERMES_GATEWAY_PID"
+echo "║  Teams Webhook:       http://localhost:3978/api/messages"
+echo "║  Omp Agent:           $W_OMP_PANE (Workers workspace)"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "Control with:"
-echo "  herdr agent prompt hermes \"<TASK>\" --wait --timeout 300000"
+echo "Control via herdr (for Omp/workers):"
+echo "  herdr agent prompt omp \"<TASK>\" --wait --timeout 300000"
 echo "  herdr agent list"
-echo "  herdr workspace list"
+echo ""
+echo "Control via Teams:"
+echo "  Message @Hermes in any Teams chat/channel"
 
 # ── Keep running ───────────────────────────────────────────────────────────
-wait $HERDR_PID
+wait $HERDR_PID $HERMES_GATEWAY_PID

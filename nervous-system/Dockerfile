@@ -75,6 +75,12 @@ RUN hermes config set model.provider "$HERMES_MODEL_PROVIDER" \
 RUN --mount=type=cache,target=/root/.npm \
     npm install -g --ignore-scripts @oh-my-pi/pi-coding-agent
 
+# =============================================================================
+# 7.5 Microsoft Teams CLI (for bot registration)
+# =============================================================================
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g @microsoft/teams.cli@preview
+
 
 # =============================================================================
 # 7. Herdr configuration

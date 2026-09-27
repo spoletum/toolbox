@@ -1,6 +1,6 @@
 # Herdr Nervous System
 
-Dockerized deployment of the herdr nervous system with Hermes (brain) and Omp (worker-spawner).
+Dockerized deployment of the herdr nervous system with Hermes (brain) connected to Microsoft Teams and Omp (worker-spawner).
 
 ## Architecture
 
@@ -11,98 +11,133 @@ Dockerized deployment of the herdr nervous system with Hermes (brain) and Omp (w
 │  ┌──────────┐    ┌──────────────────────┐   │
 │  │ Herdr     │    │  W1: Nervous System  │   │
 │  │ Server    │    │  ┌────────────────┐  │   │
-│  │ (PID 1)   │    │  │ hermes (brain) │  │   │
-│  │           │    │  └────────────────┘  │   │
-│  │ Socket    │    │                      │   │
-│  │ API       │    │  W2: Workers         │   │
+│  │ (headless)│    │  │ hermes gateway │  │   │
+│  │           │    │  │ (Teams webhook)│  │   │
+│  │ Socket    │    │  └────────────────┘  │   │
+│  │ API       │    │                      │   │
+│  │           │    │  W2: Workers         │   │
 │  │           │    │  ┌────────────────┐  │   │
 │  │           │    │  │ omp (spawner)  │  │   │
 │  │           │    │  │ worker-1       │  │   │
 │  │           │    │  │ worker-2       │  │   │
 │  │           │    │  └────────────────┘  │   │
 │  └──────────┘    └──────────────────────┘   │
-└─────────────────────────────────────────────┘
+└───────────┬─────────────────────────────────┘
+            │
+    ┌───────┴───────┐
+    │  Teams bot    │ ← @Hermes messages
+    │  :3978/api    │
+    └───────────────┘
 ```
 
 ## Quick Start
 
-### Build and run
+### 1. Configure Teams (one-time setup)
+
+Register a Teams bot and get credentials:
 
 ```bash
-cd nervous-system
-docker compose up -d
+# Install Teams CLI (provided in the image)
+teams login
+teams app create \
+  --name "Hermes" \
+  --endpoint "https://<your-domain>/api/messages"
+# Save CLIENT_ID, CLIENT_SECRET, TENANT_ID from the output
 ```
 
-### Verify
+For local dev, use `devtunnel` for a public HTTPS URL:
 
 ```bash
-docker compose exec nervous-system herdr workspace list
-docker compose exec nervous-system herdr agent list
+devtunnel create hermes-bot --allow-anonymous
+devtunnel port create hermes-bot --port 3978 --is-public
 ```
 
-### Interact with agents
+### 2. Create `.env` file
 
 ```bash
-# Prompt Hermes (brain)
-docker compose exec nervous-system herdr agent prompt hermes "Analyze the codebase and report top issues."
+cat > .env << 'EOF'
+# Microsoft Teams bot credentials
+TEAMS_CLIENT_ID=<your-client-id>
+TEAMS_CLIENT_SECRET=<your-client-secret>
+TEAMS_TENANT_ID=<your-tenant-id>
 
-# Hermes will coordinate with Omp to spawn workers as needed
+# Restrict access to specific Teams users (optional but recommended)
+TEAMS_ALLOWED_USERS=12345678-1234-1234-1234-123456789012
+
+# Require @mention in channels (personal chats are always allowed)
+TEAMS_REQUIRE_MENTION=true
+EOF
 ```
 
-### View agent output
+### 3. Build and run
 
 ```bash
-# Read what Hermes last output
-docker compose exec nervous-system herdr agent read hermes --source detection --lines 50
-
-# List all agents and their states
-docker compose exec nervous-system herdr agent list --json
+docker compose -f nervous-system/docker-compose.yml up -d
 ```
 
-### Stop
+### 4. Verify
 
 ```bash
-docker compose down
+# Check all services are running
+docker compose -f nervous-system/docker-compose.yml ps
+
+# Check Hermes gateway logs
+docker compose -f nervous-system/docker-compose.yml logs -f nervous-system
+
+# Control Omp/workers via herdr CLI
+docker compose -f nervous-system/docker-compose.yml exec nervous-system herdr agent list
+docker compose -f nervous-system/docker-compose.yml exec nervous-system herdr agent prompt omp "Review the PR changes." --wait --timeout 300000
+```
+
+### 5. Chat with Hermes
+
+Open Microsoft Teams and message @Hermes in any chat or channel.
+
+## Stopping
+
+```bash
+docker compose -f nervous-system/docker-compose.yml down
 ```
 
 ## Configuration
 
-Edit `nervous-system/config.toml` before building to customize herdr behavior.
+### Environment Variables
 
-## Persistence
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TEAMS_CLIENT_ID` | Yes | Azure AD app client ID |
+| `TEAMS_CLIENT_SECRET` | Yes | Azure AD app client secret |
+| `TEAMS_TENANT_ID` | Yes | Azure AD tenant ID |
+| `TEAMS_ALLOWED_USERS` | No | Space-separated AAD object IDs |
+| `TEAMS_REQUIRE_MENTION` | No | Require @mention in channels (default: `true`) |
+| `HERMES_MODEL_PROVIDER` | No | Model provider (default: `custom`) |
+| `HERMES_MODEL_BASE_URL` | No | Model API endpoint (default: `http://llama:8080/v1`) |
+| `HERMES_MODEL_DEFAULT` | No | Default model name |
 
-Named volumes preserve state across restarts:
+### Helm/Model Provider
 
-- `herdr-data` — herdr config, sessions, and agent state
-- `workspace` — shared workspace directory
+The nervous system uses llama.cpp for local model inference. Point to your own model:
 
-## Networking
-
-The herdr socket is accessible inside the container. To connect from the host:
-
-```bash
-# Option 1: Docker exec
-docker exec -it nervous-system herdr agent prompt hermes "Hello from host"
-
-# Option 2: Bind mount the socket
-# (Add to docker-compose.yml: - herdr-sock:/tmp/herdr.sock)
-```
-
-## Image
-
-Built with multi-platform support (`linux/amd64`, `linux/arm64`).
-
-```bash
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/spoletum/toolbox-herdr-nervous-system:latest \
-  --push .
+```yaml
+# In docker-compose.yml
+command:
+  - --model
+  - /models/your-model.gguf
 ```
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Image build — herdr + Node.js + bun + agents |
-| `config.toml` | Herdr server configuration |
-| `init.sh` | Startup script — launches server + workspaces + agents |
-| `docker-compose.yml` | Container orchestration |
+| `Dockerfile` | Image build — herdr + Node.js + bun + Hermes Agent + Omp + Teams CLI |
+| `config.toml` | Herdr headless server config |
+| `init.sh` | Startup script (server → workspaces → hermes gateway + omp agents) |
+| `docker-compose.yml` | Full stack: llama.cpp + nervous-system with Teams webhook |
+
+## Persistence
+
+Named volumes preserve state across restarts:
+
+- `herdr-data` — herdr config, sessions, agent state
+- `workspace` — shared workspace directory
+- `models` — llama.cpp model files
