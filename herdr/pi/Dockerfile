@@ -82,11 +82,18 @@ ENV HOME=/home/agent
 
 # --------------------------------------------------------------------
 # Homebrew
+#
+# Cloned manually (Homebrew's documented manual install) and pinned to
+# a release tag. The official install.sh clones the moving HEAD, which
+# would invalidate this layer - and every layer after it - on every
+# Homebrew release. Bump HOMEBREW_VERSION when new formulae require it.
 # --------------------------------------------------------------------
 
-RUN NONINTERACTIVE=1 \
-    /bin/bash -c \
-    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+ARG HOMEBREW_VERSION=6.0.22
+
+RUN git clone --depth 1 --branch "${HOMEBREW_VERSION}" \
+        https://github.com/Homebrew/brew.git \
+        /home/linuxbrew/.linuxbrew
 
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
 
@@ -101,6 +108,9 @@ ENV HOMEBREW_CACHE=/home/agent/.cache/Homebrew
 
 # --------------------------------------------------------------------
 # Homebrew-managed userland
+#
+# uid/gid on the cache mount: BuildKit creates cache mount points as
+# root, which the non-root build user cannot write to (EACCES).
 # --------------------------------------------------------------------
 
 RUN --mount=type=cache,target=/home/agent/.cache/Homebrew,uid=${UID},gid=${GID} \
