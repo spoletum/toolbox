@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+# A named volume may preserve this directory across image upgrades. Keep the
+# image-provided provider definition authoritative while preserving sessions
+# and other agent state.
+mkdir -p "$HOME/.pi/agent"
+cp /usr/local/share/pi/models.json "$HOME/.pi/agent/models.json"
+
+exec "$@"

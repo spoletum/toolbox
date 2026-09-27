@@ -1,9 +1,7 @@
-.PHONY: build run
+CONTAINER ?= docker
+IMAGE ?= ghcr.io/spoletum/toolbox-herdr-pi:v0.0.1
 
-IMAGE := ghcr.io/spoletum/toolbox-herdr-pi:v0.0.1 
+.PHONY: build
 
 build:
-	podman buildx build --tag $(IMAGE) .
-
-run:
-	podman run -ti --name toolbox-herdr-pi $(IMAGE)
+	$(CONTAINER) build --tag $(IMAGE) .

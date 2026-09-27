@@ -33,7 +33,9 @@ podman pull ghcr.io/spoletum/toolbox-nvchad:latest
 ├── herdr/
 │   └── pi/                     # Homebrew environment with the pi coding agent
 │       ├── Dockerfile
-│       └── Makefile
+│       ├── Makefile
+│       ├── models.json         # Pi's local llama.cpp provider
+│       └── README.md           # Compose-based usage instructions
 ├── .github/workflows/          # CI/CD pipelines
 │   ├── publish-nvchad.yml      # Build and publish toolbox-nvchad
 │   └── publish-herdr-pi.yml    # Build and publish toolbox-herdr-pi
@@ -42,7 +44,7 @@ podman pull ghcr.io/spoletum/toolbox-nvchad:latest
 
 ## Building Locally
 
-Each tool has its own `Makefile` for local builds. See the individual `README.md` files inside each tool's folder.
+Each tool has its own build helper. See the individual `README.md` files for usage. Herdr Pi is started from the repository root with Docker Compose (`make up`, then `make pi`) so it can reach its llama.cpp service.
 
 ## Contributing
 

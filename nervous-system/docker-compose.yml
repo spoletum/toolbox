@@ -1,0 +1,80 @@
+# Herdr Nervous System — docker-compose
+#
+# Usage:
+#   docker compose -f nervous-system/docker-compose.yml up -d
+#   docker compose -f nervous-system/docker-compose.yml exec nervous-system herdr agent list
+#   docker compose -f nervous-system/docker-compose.yml exec nervous-system herdr agent prompt hermes "Review the PR."
+
+services:
+  # llama.cpp server for local model inference
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server-vulkan
+    restart: unless-stopped
+    pull_policy: missing
+    devices:
+      - /dev/dri
+    ipc: host
+    command:
+      - --model
+      - /models/qwen3.6-35b-a3b-ud.Q4_K_M.gguf
+      - --jinja
+      - --ctx-size
+      - "262144"
+      - --flash-attn
+      - "on"
+      - --parallel
+      - "1"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - models:/models
+    networks:
+      - nervous-system-net
+
+  # Herdr nervous system: herdr server + Hermes (brain) + Omp (worker-spawner)
+  nervous-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        HERDR_VERSION: "0.9.1"
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    container_name: nervous-system
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    environment:
+      - HERMES_MODEL_PROVIDER=custom
+      - HERMES_MODEL_BASE_URL=http://llama:8080/v1
+      - HERMES_MODEL_DEFAULT=qwen3.6-35b-a3b-ud
+    depends_on:
+      - llama
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      # Persist herdr config and sessions across container restarts
+      - herdr-data:/root/.config/herdr
+      # Shared workspace for agent work
+      - workspace:/workspace
+    networks:
+      - nervous-system-net
+
+volumes:
+  herdr-data:
+  workspace:
+  models:
+
+networks:
+  nervous-system-net:

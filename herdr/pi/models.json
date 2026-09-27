@@ -1,0 +1,27 @@
+{
+  "providers": {
+    "llama": {
+      "baseUrl": "http://llama:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "llama.cpp",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "qwen3.8-flash-next-ap-q5-k-m",
+          "name": "Qwen3.8 Flash Next AP Q5_K_M (llama.cpp)",
+          "contextWindow": 262144,
+          "maxTokens": 8192
+        },
+        {
+          "id": "Qwen3-Coder-Next-Q5_K_M",
+          "name": "Qwen3-Coder Next Q5_K_M (llama.cpp)",
+          "contextWindow": 262144,
+          "maxTokens": 8192
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+# Herdr Nervous System configuration
+#
+# This config runs herdr in headless server mode.
+# Workspaces, tabs, and panes are managed programmatically via the CLI or socket API.
+
+onboarding = false
+
+[terminal]
+new_cwd = "follow"
+
+[keys]
+# No interactive keybindings needed in headless mode — everything is done via CLI/socket.
+prefix = "ctrl+space"
+
+[ui]
+accent = "blue"
+pane_gaps = false
+pane_outer_borders = false
+pane_scrollbars = false
+confirm_close = false
+prompt_new_tab_name = false
+mouse_capture = true
+window_title = "{hostname}: {workspace}"
+show_agent_labels_on_pane_borders = true
+
+[ui.toast]
+delivery = "herdr"

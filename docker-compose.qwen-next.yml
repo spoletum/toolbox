@@ -1,0 +1,106 @@
+services:
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server-vulkan
+    container_name: llama
+    restart: unless-stopped
+
+    # AMD Radeon 8060S / RADV Vulkan access
+    devices:
+      - /dev/dri:/dev/dri
+
+    # Expose llama-server only on localhost
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    volumes:
+      # Local GGUF model repository
+      - /home/spoletum/models:/models:ro
+
+      # Persist Mesa/Vulkan shader cache across restarts
+      - llama-cache:/root/.cache
+
+    environment:
+      MESA_SHADER_CACHE_MAX_SIZE: "4G"
+
+    command:
+      # Model
+      - --model
+      - /models/Qwen3.8-Flash-Next-AP-Q5_K_M.gguf
+
+      # Preserve the current client-facing model ID.
+      # Change this once pi.dev is migrated to the new model name.
+      - --alias
+      - qwen3-coder-30b-a3b-q6-k
+
+      # Native Qwen3.8-Flash-Next context
+      - --ctx-size
+      - "262144"
+
+      # Single concurrent sequence for maximum per-request throughput
+      - --parallel
+      - "1"
+
+      # Offload all eligible model layers to Vulkan
+      - --gpu-layers
+      - all
+
+      # Keep Flash Attention enabled
+      - --flash-attn
+      - "on"
+
+      # Keep the large per-layer n-gram embedding table in system RAM
+      - --override-tensor
+      - per_layer_token_embd=CPU
+
+      # Quantized KV cache for long-context operation
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+
+      # Explicit batching values (current llama.cpp defaults)
+      - --batch-size
+      - "2048"
+      - --ubatch-size
+      - "512"
+
+      # Use the embedded Jinja chat/tool template
+      - --jinja
+
+      # Qwen-recommended thinking-mode sampling
+      - --temp
+      - "1.0"
+      - --top-p
+      - "0.95"
+      - --top-k
+      - "20"
+      - --min-p
+      - "0.0"
+      - --presence-penalty
+      - "0.0"
+      - --repeat-penalty
+      - "1.0"
+
+      # Server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+
+      # Prometheus-compatible performance metrics
+      - --metrics
+
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8080/health
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 10m
+
+volumes:
+  llama-cache:
+

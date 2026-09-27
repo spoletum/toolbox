@@ -1,0 +1,47 @@
+services:
+  llama:
+    command:
+      # Load Qwen3.6-35B-A3B-UD directly to avoid router/worker startup overhead.
+      - --model
+      - /models/Qwen3.6-35B-A3B-MTP/Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf
+      - --alias
+      - Qwen3.6-35B-A3B-UD
+      - --jinja
+      # Two slots share the 262k KV pool and are each capped at 131k.
+      # Clients must compact before reaching the per-slot limit.
+      - --ctx-size
+      - "262144"
+      - --parallel
+      - "2"
+      - --kv-unified
+      - --kv-unified-per-slot
+      - "131072"
+      # Preserve the long conversation in live KV instead of serializing and
+      # clearing it whenever auxiliary work arrives.
+      - --no-cache-idle-slots
+      - --gpu-layers
+      - all
+      # Let llama.cpp select mmap when supported. This model has no lazy tensors.
+      - --load-mode
+      - auto
+      - --lazy-mode
+      - "off"
+      # Quantized KV keeps the 262k context affordable; Flash Attention is required
+      # for a quantized V cache.
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --flash-attn
+      - "on"
+      # Match the 16 physical CPU cores. Batch defaults are already 2048/512.
+      - --threads
+      - "16"
+      - --metrics
+      # Bind inside the container; the base Compose file publishes host loopback only.
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --cors-origins
+      - localhost

@@ -1,0 +1,81 @@
+services:
+  llama:
+    # Vulkan avoids ROCm/KFD SVM, which faults on this host's current AMDGPU stack.
+    image: ghcr.io/ggml-org/llama.cpp:server-vulkan
+    container_name: llama-server-vulkan
+    restart: unless-stopped
+    pull_policy: missing
+    devices:
+      - /dev/dri
+    ipc: host
+    command:
+      # Router mode: omit --model; llama.cpp loads the requested GGUF on demand.
+      - --models-dir
+      - /models
+      - --jinja
+      - --ctx-size
+      - "262144"
+      - --gpu-layers
+      - "999"
+      # Keep the 51.2B-parameter n-gram table on NVMe and fetch rows on demand.
+      - --load-mode
+      - mmap
+      - --lazy-mode
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --flash-attn
+      - "on"
+      # This is a single-user workstation. Use one 256k slot.
+      - --parallel
+      - "1"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /home/spoletum/models:/models:ro
+    networks:
+      - ai
+      - internet
+
+  dev:
+    build:
+      context: ./herdr/pi
+      args:
+        UID: "${HOST_UID:-1000}"
+        GID: "${HOST_GID:-1000}"
+    container_name: pi-dev
+    restart: unless-stopped
+    init: true
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /home/agent/workspace
+    command: sleep infinity
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      - "${PROJECTS_DIR:-${HOME}/Projects}:/home/agent/workspace"
+      - pi-agent:/home/agent/.pi/agent
+      - /home/spoletum/models:/home/agent/models
+    depends_on:
+      llama:
+        condition: service_started
+    networks:
+      - ai
+      - internet
+
+volumes:
+  pi-agent:
+
+networks:
+  ai:
+    internal: true
+  internet:

@@ -103,7 +103,7 @@ ENV HOMEBREW_CACHE=/home/agent/.cache/Homebrew
 # Homebrew-managed userland
 # --------------------------------------------------------------------
 
-RUN --mount=type=cache,target=/home/agent/.cache/Homebrew \
+RUN --mount=type=cache,target=/home/agent/.cache/Homebrew,uid=${UID},gid=${GID} \
     brew install \
         git \
         openssh \
@@ -151,9 +151,27 @@ RUN mkdir -p /home/agent/.docker \
 # npm is supplied by Homebrew's Node installation.
 # --------------------------------------------------------------------
 
-RUN --mount=type=cache,target=/home/agent/.npm \
+RUN --mount=type=cache,target=/home/agent/.npm,uid=${UID},gid=${GID} \
     npm install -g --ignore-scripts \
     @earendil-works/pi-coding-agent
+
+# Pi uses llama.cpp on Compose's private network. The dummy API key is
+# required by Pi's local-provider configuration but ignored by llama.cpp.
+# Hugging Face CLI lets Pi download public GGUFs into the shared models volume.
+# Create this directory in the image as agent so Docker initializes its named
+# volume with writable ownership on first use.
+RUN mkdir -p /home/agent/.pi/agent /home/agent/models
+
+# Homebrew marks its Python as externally managed (PEP 668), so keep the
+# application and its dependencies in an isolated virtual environment.
+RUN python3 -m venv /home/agent/.local/share/huggingface \
+    && /home/agent/.local/share/huggingface/bin/pip install --no-cache-dir huggingface_hub
+ENV PATH="/home/agent/.local/share/huggingface/bin:${PATH}"
+
+# Keep the source outside $HOME: Compose persists $HOME/.pi in a named volume.
+COPY --chown=agent:agent models.json /usr/local/share/pi/models.json
+COPY --chown=agent:agent container-init /usr/local/bin/container-init
+RUN chmod 755 /usr/local/bin/container-init
 
 # --------------------------------------------------------------------
 # Bash configuration
@@ -177,4 +195,5 @@ RUN printf '%s\n' \
 
 WORKDIR /home/agent/workspace
 
+ENTRYPOINT ["/usr/local/bin/container-init"]
 CMD ["bash"]
