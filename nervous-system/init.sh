@@ -56,15 +56,15 @@ W_WS_ID=$(echo "$W_CREATE" | jqf "result.workspace.workspace_id")
 W_ROOT_PANE=$(echo "$W_CREATE" | jqf "result.root_pane.pane_id")
 echo "  Workers: ws=$W_WS_ID root_pane=$W_ROOT_PANE"
 
-# ── Launch Hermes via Teams Gateway ──────────────────────────────────────
-echo "⚙️ Starting Hermes Teams gateway..."
+# ── Launch Hermes as herdr agent ───────────────────────────────────────────
+echo "⚙️ Starting Hermes (brain harness)..."
 
-# Start the hermes gateway in background (handles Teams webhook on :3978)
-# --accept-hooks: auto-approve shell hooks without TTY prompt
-hermes gateway run --accept-hooks &
-HERMES_GATEWAY_PID=$!
-echo "✓ Hermes Teams gateway started (PID $HERMES_GATEWAY_PID)"
-echo "  Webhook: http://localhost:3978/api/messages"
+# Split off a new pane from the root pane
+NS_SPLIT=$(herdr pane split --pane "$NS_ROOT_PANE" --direction right --cwd /workspace --no-focus)
+NS_HERMES_PANE=$(echo "$NS_SPLIT" | jqf "result.pane.pane_id")
+
+herdr agent start hermes --kind hermes --pane "$NS_HERMES_PANE" --timeout 60000
+echo "✓ Hermes started in $NS_HERMES_PANE"
 
 # ── Launch Omp in Workers workspace ───────────────────────────────────────
 echo "⚙️ Starting Omp (worker-spawner)..."
@@ -77,6 +77,18 @@ W_OMP_PANE=$(echo "$W_SPLIT" | jqf "result.pane.pane_id")
 herdr agent start omp --kind omp --pane "$W_OMP_PANE" --timeout 60000
 echo "✓ Omp started in $W_OMP_PANE"
 
+# ── Start Teams webhook handler ───────────────────────────────────────────
+echo "⚙️ Starting Teams webhook handler..."
+
+# Export the Hermes pane ID for the webhook handler
+export HERMES_PANE_ID="$NS_HERMES_PANE"
+export PORT="${TEAMS_PORT:-3978}"
+
+# Start the webhook handler in background
+python3 /opt/teams_webhook_handler/handler.py &
+WEBHOOK_PID=$!
+echo "✓ Teams webhook handler started (PID $WEBHOOK_PID, port $PORT)"
+
 # ── Summary ────────────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
@@ -84,17 +96,22 @@ echo "║  Herdr Nervous System Ready                              ║"
 echo "╠══════════════════════════════════════════════════════════╣"
 echo "║  Herdr Server PID:    $HERDR_PID"
 echo "║  Herdr Socket:        /root/.config/herdr/herdr.sock"
-echo "║  Hermes Gateway PID:  $HERMES_GATEWAY_PID"
-echo "║  Teams Webhook:       http://localhost:3978/api/messages"
+echo "║  Hermes Agent:        $NS_HERMES_PANE (Nervous System ws)"
 echo "║  Omp Agent:           $W_OMP_PANE (Workers workspace)"
+echo "║  Teams Webhook:       http://localhost:$PORT/api/messages"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "Control via herdr (for Omp/workers):"
+echo "Control via herdr:"
+echo "  herdr agent prompt hermes \"<TASK>\" --wait --timeout 300000"
 echo "  herdr agent prompt omp \"<TASK>\" --wait --timeout 300000"
 echo "  herdr agent list"
 echo ""
 echo "Control via Teams:"
 echo "  Message @Hermes in any Teams chat/channel"
+echo ""
+echo "Register Teams bot:"
+echo "  teams app create --name \"Hermes\" --endpoint \"https://<domain>/api/messages\""
+echo "  teams status --verbose  # get your AAD object ID for TEAMS_ALLOWED_USERS"
 
 # ── Keep running ───────────────────────────────────────────────────────────
-wait $HERDR_PID $HERMES_GATEWAY_PID
+wait $HERDR_PID $WEBHOOK_PID

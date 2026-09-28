@@ -50,17 +50,15 @@ services:
     tty: true
     stdin_open: true
     environment:
+      # Microsoft Teams webhook handler
+      - TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID:-}
+      - TEAMS_CLIENT_SECRET=${TEAMS_CLIENT_SECRET:-}
+      - TEAMS_TENANT_ID=${TEAMS_TENANT_ID:-}
+      - TEAMS_PORT=${TEAMS_PORT:-3978}
       # Model provider (llama.cpp)
       - HERMES_MODEL_PROVIDER=custom
       - HERMES_MODEL_BASE_URL=http://llama:8080/v1
-      - HERMES_MODEL_DEFAULT=qwen3.6-35b-a3b-ud
-      # Microsoft Teams gateway
-      - HERMES_TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID:-}
-      - HERMES_TEAMS_CLIENT_SECRET=${TEAMS_CLIENT_SECRET:-}
-      - HERMES_TEAMS_TENANT_ID=${TEAMS_TENANT_ID:-}
-      - HERMES_TEAMS_ALLOWED_USERS=${TEAMS_ALLOWED_USERS:-}
-      - HERMES_TEAMS_REQUIRE_MENTION=${TEAMS_REQUIRE_MENTION:-true}
-      - HERMES_TEAMS_PORT=3978
+      - HERMES_MODEL_DEFAULT=qwen3.6:35b-a3b-ud
     ports:
       # Teams webhook listener
       - "3978:3978"

@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # Herdr Nervous System: headless herdr server + Hermes (brain) + Omp (worker-spawner)
+# Teams integration via webhook handler
 #
 # Build:
 #   docker buildx build --platform linux/amd64,linux/arm64 \
@@ -76,21 +77,26 @@ RUN --mount=type=cache,target=/root/.npm \
     npm install -g --ignore-scripts @oh-my-pi/pi-coding-agent
 
 # =============================================================================
-# 7.5 Microsoft Teams CLI (for bot registration)
+# 7. Microsoft Teams CLI (for bot registration)
 # =============================================================================
 RUN --mount=type=cache,target=/root/.npm \
     npm install -g @microsoft/teams.cli@preview
 
+# =============================================================================
+# 8. Teams webhook handler (bridges Teams ↔ herdr CLI)
+# =============================================================================
+COPY teams_webhook_handler /opt/teams_webhook_handler
+RUN pip install --break-system-packages --no-cache-dir flask requests
 
 # =============================================================================
-# 7. Herdr configuration
+# 9. Herdr configuration
 # =============================================================================
 RUN mkdir -p /root/.config/herdr
 
 COPY config.toml /root/.config/herdr/config.toml
 
 # =============================================================================
-# 6. Startup script
+# 10. Startup script
 # =============================================================================
 COPY init.sh /usr/local/bin/nervous-system-init
 RUN chmod 755 /usr/local/bin/nervous-system-init
