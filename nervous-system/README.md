@@ -155,7 +155,7 @@ command:
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Image build — herdr + Node.js + bun + Hermes Agent + Omp + Teams CLI + webhook handler |
+| `Dockerfile` | Image build — herdr + Node.js + bun + Hermes Agent + Omp + Glow (markdown) + Teams CLI + webhook handler |
 | `config.toml` | Herdr headless server config |
 | `init.sh` | Startup script (server → workspaces → hermes agent + omp agent + webhook handler) |
 | `docker-compose.yml` | Full stack: llama.cpp + nervous-system with Teams webhook |

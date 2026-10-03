@@ -77,26 +77,43 @@ RUN --mount=type=cache,target=/root/.npm \
     npm install -g --ignore-scripts @oh-my-pi/pi-coding-agent
 
 # =============================================================================
-# 7. Microsoft Teams CLI (for bot registration)
+# 7. Glow (TTY markdown renderer — tables, code blocks, GFM)
+# =============================================================================
+ARG GLOW_VERSION=3.0.0
+RUN ARCH=$(case ${TARGETARCH} in amd64) echo "x86_64";; arm64) echo "arm64";; esac) \
+    && curl -fsSL "https://github.com/charmbracelet/glow/releases/download/v${GLOW_VERSION}/glow_${GLOW_VERSION}_Linux_${ARCH}.tar.gz" \
+    -o "/tmp/glow_${GLOW_VERSION}_Linux_${ARCH}.tar.gz" \
+    && curl -fsSL "https://github.com/charmbracelet/glow/releases/download/v${GLOW_VERSION}/checksums.txt" \
+    -o /tmp/glow.checksums \
+    && grep " glow_${GLOW_VERSION}_Linux_${ARCH}.tar.gz$" /tmp/glow.checksums > /tmp/glow.checksum.single \
+    && (cd /tmp && sha256sum --check glow.checksum.single) \
+    && tar -xzf "/tmp/glow_${GLOW_VERSION}_Linux_${ARCH}.tar.gz" -C /tmp \
+    && install -m 755 "/tmp/glow_${GLOW_VERSION}_Linux_${ARCH}/glow" /usr/local/bin/glow \
+    && mkdir -p /usr/local/share/glow-completions \
+    && cp "/tmp/glow_${GLOW_VERSION}_Linux_${ARCH}/completions/"* /usr/local/share/glow-completions/ \
+    && rm -rf "/tmp/glow_${GLOW_VERSION}_Linux_${ARCH}.tar.gz" /tmp/glow.checksum* "/tmp/glow_${GLOW_VERSION}_Linux_${ARCH}"
+
+# =============================================================================
+# 8. Microsoft Teams CLI (for bot registration)
 # =============================================================================
 RUN --mount=type=cache,target=/root/.npm \
     npm install -g @microsoft/teams.cli@preview
 
 # =============================================================================
-# 8. Teams webhook handler (bridges Teams ↔ herdr CLI)
+# 9. Teams webhook handler (bridges Teams ↔ herdr CLI)
 # =============================================================================
 COPY teams_webhook_handler /opt/teams_webhook_handler
 RUN pip install --break-system-packages --no-cache-dir flask requests
 
 # =============================================================================
-# 9. Herdr configuration
+# 10. Herdr configuration
 # =============================================================================
 RUN mkdir -p /root/.config/herdr
 
 COPY config.toml /root/.config/herdr/config.toml
 
 # =============================================================================
-# 10. Startup script
+# 11. Startup script
 # =============================================================================
 COPY init.sh /usr/local/bin/nervous-system-init
 RUN chmod 755 /usr/local/bin/nervous-system-init
